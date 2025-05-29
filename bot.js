@@ -51,5 +51,38 @@ async function startBot() {
         }
     });
 }
+conn.ev.on('messages.update', async (updates) => {
+    for (const update of updates) {
+        if (!update.message && update.key?.remoteJid && update.key?.id) {
+            try {
+                const deletedMsg = await conn.loadMessage(update.key.remoteJid, update.key.id);
+                if (deletedMsg) {
+                    const sender = deletedMsg.key.participant || deletedMsg.key.remoteJid;
+                    const messageType = Object.keys(deletedMsg.message)[0];
+                    let content = '';
+
+                    switch (messageType) {
+                        case 'conversation':
+                            content = deletedMsg.message.conversation;
+                            break;
+                        case 'extendedTextMessage':
+                            content = deletedMsg.message.extendedTextMessage.text;
+                            break;
+                        default:
+                            content = `⚠️ Deleted a message of type: ${messageType}`;
+                    }
+
+                    await conn.sendMessage(update.key.remoteJid, {
+                        text: `🛑 *Anti-Delete Alert*\n@${sender.split('@')[0]} deleted:\n\n${content}`,
+                        mentions: [sender]
+                    });
+                }
+            } catch (e) {
+                console.error('⚠️ Could not recover deleted message:', e);
+            }
+        }
+    }
+});
+
 
 startBot();
